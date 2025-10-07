@@ -70,6 +70,7 @@ class PinViewerScreen : public GPScreen {
             {GpioAction::BUTTON_PRESS_E10, "E10"},
             {GpioAction::BUTTON_PRESS_E11, "E11"},
             {GpioAction::BUTTON_PRESS_E12, "E12"},
+            {GpioAction::BUTTON_PRESS_XOR, "XOR"},
         };
 };
 

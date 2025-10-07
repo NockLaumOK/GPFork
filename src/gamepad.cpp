@@ -82,9 +82,11 @@ void Gamepad::setup()
 	mapAnalogLSYPos = new GamepadButtonMapping(ANALOG_DIRECTION_LS_Y_POS);
 	mapAnalogRSXNeg = new GamepadButtonMapping(ANALOG_DIRECTION_RS_X_NEG);
 	mapAnalogRSXPos = new GamepadButtonMapping(ANALOG_DIRECTION_RS_X_POS);
-	mapAnalogRSYNeg = new GamepadButtonMapping(ANALOG_DIRECTION_RS_Y_NEG);
-	mapAnalogRSYPos = new GamepadButtonMapping(ANALOG_DIRECTION_RS_Y_POS);
-	map48WayMode    = new GamepadButtonMapping(SUSTAIN_4_8_WAY_MODE);
+        mapAnalogRSYNeg = new GamepadButtonMapping(ANALOG_DIRECTION_RS_Y_NEG);
+        mapAnalogRSYPos = new GamepadButtonMapping(ANALOG_DIRECTION_RS_Y_POS);
+        map48WayMode    = new GamepadButtonMapping(SUSTAIN_4_8_WAY_MODE);
+
+        xorMappings.clear();
 
 	const auto assignCustomMappingToMaps = [&](GpioMappingInfo mapInfo, Pin_t pin) -> void {
 		if (mapDpadUp->buttonMask & mapInfo.customDpadMask)	mapDpadUp->pinMask |= 1 << pin;
@@ -151,6 +153,21 @@ void Gamepad::setup()
 			case GpioAction::SUSTAIN_DP_MODE_LS:	mapButtonLS->pinMask |= 1 << pin; break;
 			case GpioAction::SUSTAIN_DP_MODE_RS:	mapButtonRS->pinMask |= 1 << pin; break;
 			case GpioAction::CUSTOM_BUTTON_COMBO:	assignCustomMappingToMaps(pinMappings[pin], pin); break;
+			case GpioAction::BUTTON_PRESS_XOR:
+			{
+				const uint32_t targetMask = pinMappings[pin].customButtonMask;
+				if (pin < 0 || targetMask == 0 || (targetMask & (targetMask - 1)) != 0)
+					break;
+
+				GamepadButtonMapping* targetMapping = findButtonMapping(targetMask);
+				if (targetMapping == nullptr)
+					break;
+
+				const uint32_t pinBit = 1U << pin;
+				targetMapping->pinMask |= pinBit;
+				xorMappings.push_back({pin, targetMapping, targetMask});
+				break;
+			}
 			case GpioAction::DIGITAL_DIRECTION_UP:	mapDigitalUp->pinMask |= 1 << pin; break;
 			case GpioAction::DIGITAL_DIRECTION_DOWN:	mapDigitalDown->pinMask |= 1 << pin; break;
 			case GpioAction::DIGITAL_DIRECTION_LEFT:	mapDigitalLeft->pinMask |= 1 << pin; break;
@@ -339,10 +356,10 @@ void Gamepad::read()
 		| ((values & mapDigitalRight->pinMask) ? (mapDigitalRight->buttonMask << 4) : 0)
 	;
 
-	state.buttons = 0
-		| ((values & mapButtonB1->pinMask)  ? mapButtonB1->buttonMask  : 0)
-		| ((values & mapButtonB2->pinMask)  ? mapButtonB2->buttonMask  : 0)
-		| ((values & mapButtonB3->pinMask)  ? mapButtonB3->buttonMask  : 0)
+        state.buttons = 0
+                | ((values & mapButtonB1->pinMask)  ? mapButtonB1->buttonMask  : 0)
+                | ((values & mapButtonB2->pinMask)  ? mapButtonB2->buttonMask  : 0)
+                | ((values & mapButtonB3->pinMask)  ? mapButtonB3->buttonMask  : 0)
 		| ((values & mapButtonB4->pinMask)  ? mapButtonB4->buttonMask  : 0)
 		| ((values & mapButtonL1->pinMask)  ? mapButtonL1->buttonMask  : 0)
 		| ((values & mapButtonR1->pinMask)  ? mapButtonR1->buttonMask  : 0)
@@ -366,11 +383,27 @@ void Gamepad::read()
 		| ((values & mapButtonE8->pinMask)  ? mapButtonE8->buttonMask  : 0)
 		| ((values & mapButtonE9->pinMask)  ? mapButtonE9->buttonMask  : 0)
 		| ((values & mapButtonE10->pinMask) ? mapButtonE10->buttonMask : 0)
-		| ((values & mapButtonE11->pinMask) ? mapButtonE11->buttonMask : 0)
-		| ((values & mapButtonE12->pinMask) ? mapButtonE12->buttonMask : 0)
-	;
+                | ((values & mapButtonE11->pinMask) ? mapButtonE11->buttonMask : 0)
+                | ((values & mapButtonE12->pinMask) ? mapButtonE12->buttonMask : 0)
+        ;
 
-	// set the effective dpad mode based on settings + overrides
+        for (const auto &mapping : xorMappings) {
+                if (mapping.pin < 0)
+                        continue;
+
+                const uint32_t pinBit = 1U << mapping.pin;
+                if ((values & pinBit) == 0)
+                        continue;
+
+                const uint32_t otherPins = mapping.mapping->pinMask & ~pinBit;
+                if (otherPins == 0)
+                        continue;
+
+                if ((values & otherPins) != 0)
+                        state.buttons &= ~mapping.mask;
+        }
+
+        // set the effective dpad mode based on settings + overrides
 	if (values & mapButtonDP->pinMask)	activeDpadMode = DpadMode::DPAD_MODE_DIGITAL;
 	else if (values & mapButtonLS->pinMask)	activeDpadMode = DpadMode::DPAD_MODE_LEFT_ANALOG;
 	else if (values & mapButtonRS->pinMask)	activeDpadMode = DpadMode::DPAD_MODE_RIGHT_ANALOG;
@@ -408,13 +441,47 @@ void Gamepad::read()
 		state.ry = joystickMid;
 	}
 
-	state.lt = 0;
-	state.rt = 0;
+        state.lt = 0;
+        state.rt = 0;
+}
+
+GamepadButtonMapping* Gamepad::findButtonMapping(uint32_t mask)
+{
+        if (mask == mapButtonB1->buttonMask)  return mapButtonB1;
+        if (mask == mapButtonB2->buttonMask)  return mapButtonB2;
+        if (mask == mapButtonB3->buttonMask)  return mapButtonB3;
+        if (mask == mapButtonB4->buttonMask)  return mapButtonB4;
+        if (mask == mapButtonL1->buttonMask)  return mapButtonL1;
+        if (mask == mapButtonR1->buttonMask)  return mapButtonR1;
+        if (mask == mapButtonL2->buttonMask)  return mapButtonL2;
+        if (mask == mapButtonR2->buttonMask)  return mapButtonR2;
+        if (mask == mapButtonS1->buttonMask)  return mapButtonS1;
+        if (mask == mapButtonS2->buttonMask)  return mapButtonS2;
+        if (mask == mapButtonL3->buttonMask)  return mapButtonL3;
+        if (mask == mapButtonR3->buttonMask)  return mapButtonR3;
+        if (mask == mapButtonA1->buttonMask)  return mapButtonA1;
+        if (mask == mapButtonA2->buttonMask)  return mapButtonA2;
+        if (mask == mapButtonA3->buttonMask)  return mapButtonA3;
+        if (mask == mapButtonA4->buttonMask)  return mapButtonA4;
+        if (mask == mapButtonE1->buttonMask)  return mapButtonE1;
+        if (mask == mapButtonE2->buttonMask)  return mapButtonE2;
+        if (mask == mapButtonE3->buttonMask)  return mapButtonE3;
+        if (mask == mapButtonE4->buttonMask)  return mapButtonE4;
+        if (mask == mapButtonE5->buttonMask)  return mapButtonE5;
+        if (mask == mapButtonE6->buttonMask)  return mapButtonE6;
+        if (mask == mapButtonE7->buttonMask)  return mapButtonE7;
+        if (mask == mapButtonE8->buttonMask)  return mapButtonE8;
+        if (mask == mapButtonE9->buttonMask)  return mapButtonE9;
+        if (mask == mapButtonE10->buttonMask) return mapButtonE10;
+        if (mask == mapButtonE11->buttonMask) return mapButtonE11;
+        if (mask == mapButtonE12->buttonMask) return mapButtonE12;
+
+        return nullptr;
 }
 
 void Gamepad::hotkey() {
-	if (options.lockHotkeys)
-		return;
+        if (options.lockHotkeys)
+                return;
 
 	// Look for a hot-key
 	bool hasHotkey = false;
