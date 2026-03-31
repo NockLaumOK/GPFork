@@ -55,6 +55,7 @@ export default {
 		'last-win': 'Last Win',
 		'first-win': 'First Win',
 		off: 'Off',
+		'neutral-lr-last-ud': 'L+R Neutral / U+D Last Win',
 	},
 	'profile-label': 'Profile',
 	'debounce-delay-label': 'Debounce Delay in milliseconds',
