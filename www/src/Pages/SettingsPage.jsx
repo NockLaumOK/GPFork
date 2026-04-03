@@ -259,6 +259,7 @@ const SOCD_MODES = [
 	{ labelKey: 'socd-cleaning-mode-options.last-win', value: 2 },
 	{ labelKey: 'socd-cleaning-mode-options.first-win', value: 3 },
 	{ labelKey: 'socd-cleaning-mode-options.off', value: 4 },
+	{ labelKey: 'socd-cleaning-mode-options.neutral-lr-last-ud', value: 5 },
 ];
 
 const PS4_MODES = [

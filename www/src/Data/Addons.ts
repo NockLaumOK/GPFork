@@ -29,4 +29,5 @@ export const SOCD_MODES = [
 	{ label: 'Last Win', value: 2 },
 	{ label: 'First Win', value: 3 },
 	{ label: 'SOCD Cleaning Off', value: 4 },
+	{ label: 'L+R Neutral, U+D Last Win', value: 5 },
 ];
