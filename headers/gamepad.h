@@ -5,6 +5,7 @@
 #include "types.h"
 #include <string.h>
 #include <string>
+#include <vector>
 
 #include "enums.pb.h"
 #include "gamepad/GamepadState.h"
@@ -207,9 +208,20 @@ public:
 
 private:
 
-	uint8_t getModifier(uint8_t code);
-	uint8_t getMultimedia(uint8_t code);
-	void processHotkeyAction(GamepadHotkey action);
+        struct GamepadXorMapping
+        {
+                Pin_t pin;
+                GamepadButtonMapping* mapping;
+                uint32_t mask;
+        };
+
+        GamepadButtonMapping* findButtonMapping(uint32_t mask);
+
+        std::vector<GamepadXorMapping> xorMappings;
+
+        uint8_t getModifier(uint8_t code);
+        uint8_t getMultimedia(uint8_t code);
+        void processHotkeyAction(GamepadHotkey action);
 
 	GamepadOptions & options;
 	DpadMode activeDpadMode;

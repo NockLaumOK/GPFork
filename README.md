@@ -70,6 +70,27 @@ Results from v0.7.10 can be found [HERE](https://github.com/OpenStickCommunity/S
 
 If you would like to discuss features, issues or anything else related to GP2040-CE please [create an issue](https://github.com/OpenStickCommunity/GP2040-CE/issues/new) or join the [OpenStick GP2040-CE Discord](https://discord.gg/k2pxhke7q8) support channel.
 
+## Building with Visual Studio Code
+
+The repository ships with CMake configuration that integrates with the Raspberry Pi Pico Visual Studio Code extension (`pico-vscode.cmake`). To build the firmware in VS Code:
+
+1. **Install prerequisites**
+   - Install the [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk) and set the `PICO_SDK_PATH` environment variable so CMake can locate it during configuration.
+   - Install the official *Raspberry Pi Pico* extension (includes the CMake Tools dependency) from the VS Code marketplace.
+
+2. **Open the project folder**
+   - Launch VS Code and use **File → Open Folder…** to select the repository root (`GPFork`).
+   - The Pico extension detects `pico-vscode.cmake` automatically and configures CMake with the bundled presets.
+
+3. **Configure and build**
+   - Open the VS Code Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **Pico: Quick Pico Setup** if prompted to finish configuring the SDK path.
+   - Use **CMake: Configure** to generate the build directory, then select your preferred build variant (e.g., *Default* release).
+   - Run **CMake: Build** (or click the build button in the status bar). CMake invokes the same firmware build as the command-line workflow and writes UF2 artifacts under the chosen build directory.
+
+4. **Flash / debug (optional)**
+   - With a Pico board connected in BOOTSEL mode, run **Pico: Flash** from the Command Palette to copy the generated UF2 to the device.
+   - The extension also exposes debug configurations for SWD probes if you install `openocd` and configure the corresponding JSON entries.
+
 ## Contributing
 
 Want to help improve GP2040-CE? There are a bunch of ways to contribute!

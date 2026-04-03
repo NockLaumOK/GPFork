@@ -34,7 +34,7 @@ import Section from '../Components/Section';
 import CustomSelect from '../Components/CustomSelect';
 import CaptureButton from '../Components/CaptureButton';
 
-import { BUTTON_MASKS, DPAD_MASKS, getButtonLabels } from '../Data/Buttons';
+import { BUTTON_MASKS, BUTTON_MASKS_OPTIONS, DPAD_MASKS, getButtonLabels } from '../Data/Buttons';
 import { BUTTON_ACTIONS, PinActionKeys, PinActionValues } from '../Data/Pins';
 import './PinMapping.scss';
 import { MultiValue, SingleValue } from 'react-select';
@@ -70,34 +70,42 @@ const isDisabled = (action: PinActionValues) =>
 	disabledOptions.includes(action);
 
 const options = Object.entries(BUTTON_ACTIONS)
-	.filter(([, value]) => !isNonSelectable(value))
-	.map(([key, value]) => {
-		const buttonMask = getMask(BUTTON_MASKS, key);
-		const dpadMask = getMask(DPAD_MASKS, key);
+        .filter(([, value]) => !isNonSelectable(value))
+        .map(([key, value]) => {
+                const buttonMask = getMask(BUTTON_MASKS, key);
+                const dpadMask = getMask(DPAD_MASKS, key);
+                const labelKey = key.split('BUTTON_PRESS_')?.pop();
+                const extraButtonMask =
+                        !buttonMask && labelKey?.startsWith('E')
+                                ? getMask(BUTTON_MASKS_OPTIONS, key)
+                                : undefined;
+                const resolvedButtonMask = buttonMask ?? extraButtonMask;
 
-		return {
-			label: key,
-			value,
-			type: buttonMask
-				? 'customButtonMask'
-				: dpadMask
-				? 'customDpadMask'
-				: 'action',
-			customButtonMask: buttonMask?.value || 0,
-			customDpadMask: dpadMask?.value || 0,
-		};
-	});
+                return {
+                        label: key,
+                        value,
+                        type: resolvedButtonMask
+                                ? 'customButtonMask'
+                                : dpadMask
+                                ? 'customDpadMask'
+                                : 'action',
+                        customButtonMask: resolvedButtonMask?.value || 0,
+                        customDpadMask: dpadMask?.value || 0,
+                };
+        });
 
 const groupedOptions = [
-	{
-		label: 'Buttons',
-		options: options.filter(({ type }) => type !== 'action'),
-	},
-	{
-		label: 'Actions',
-		options: options.filter(({ type }) => type === 'action'),
-	},
+        {
+                label: 'Buttons',
+                options: options.filter(({ type }) => type !== 'action'),
+        },
+        {
+                label: 'Actions',
+                options: options.filter(({ type }) => type === 'action'),
+        },
 ];
+
+const XOR_ACTION = BUTTON_ACTIONS.BUTTON_PRESS_XOR;
 
 const getMultiValue = (pinData: MaskPayload) => {
 	if (pinData.action === BUTTON_ACTIONS.NONE) return;
@@ -112,16 +120,29 @@ const getMultiValue = (pinData: MaskPayload) => {
 				customDpadMask: pinData.customDpadMask,
 			},
 		];
-	}
+        }
 
-	return pinData.action === BUTTON_ACTIONS.CUSTOM_BUTTON_COMBO
-		? options.filter(
-				({ type, customButtonMask, customDpadMask }) =>
-					(pinData.customButtonMask & customButtonMask &&
-						type === 'customButtonMask') ||
+        if (pinData.action === XOR_ACTION) {
+                const xorOption = options.find(({ value }) => value === XOR_ACTION);
+                const maskOption = options.find(
+                        ({ type, customButtonMask }) =>
+                                type === 'customButtonMask' &&
+                                customButtonMask === pinData.customButtonMask,
+                );
+
+                return [xorOption, maskOption].filter(Boolean) as
+                        | MultiValue<OptionType>
+                        | SingleValue<OptionType>;
+        }
+
+        return pinData.action === BUTTON_ACTIONS.CUSTOM_BUTTON_COMBO
+                ? options.filter(
+                                ({ type, customButtonMask, customDpadMask }) =>
+                                        (pinData.customButtonMask & customButtonMask &&
+                                                type === 'customButtonMask') ||
 					(pinData.customDpadMask & customDpadMask &&
 						type === 'customDpadMask'),
-		  )
+                )
 		: options.filter((option) => option.value === pinData.action);
 };
 
@@ -191,46 +212,65 @@ const PinSelectList = memo(function PinSelectList({
 						customButtonMask: 0,
 						customDpadMask: 0,
 					});
-				} else if (Array.isArray(selected) && selected.length > 1) {
-					const lastSelected = selected[selected.length - 1];
-					// Revert to single option if choosing action type
-					if (lastSelected.type === 'action') {
-						setProfilePin(profileIndex, pin, {
-							action: lastSelected.value,
-							customButtonMask: 0,
-							customDpadMask: 0,
-						});
-					} else {
-						setProfilePin(
-							profileIndex,
-							pin,
-							selected.reduce(
-								(masks, option) => ({
-									...masks,
-									customButtonMask:
-										option.type === 'customButtonMask'
-											? masks.customButtonMask ^ option.customButtonMask
-											: masks.customButtonMask,
-									customDpadMask:
-										option.type === 'customDpadMask'
-											? masks.customDpadMask ^ option.customDpadMask
-											: masks.customDpadMask,
-								}),
-								{
-									action: BUTTON_ACTIONS.CUSTOM_BUTTON_COMBO,
-									customButtonMask: 0,
-									customDpadMask: 0,
-								},
-							),
-						);
-					}
-				} else {
-					setProfilePin(profileIndex, pin, {
-						action: selected[0].value,
-						customButtonMask: 0,
-						customDpadMask: 0,
-					});
-				}
+                                } else if (Array.isArray(selected)) {
+                                if (selected.some(({ value }) => value === XOR_ACTION)) {
+                                                const maskOption = [...selected]
+                                                        .reverse()
+                                                        .find(({ type }) => type === 'customButtonMask');
+
+                                                setProfilePin(profileIndex, pin, {
+                                                        action: XOR_ACTION,
+                                                        customButtonMask:
+                                                                maskOption?.customButtonMask ?? 0,
+                                                        customDpadMask: 0,
+                                                });
+                                        } else if (selected.length > 1) {
+                                                const lastSelected = selected[selected.length - 1];
+                                                // Revert to single option if choosing action type
+                                                if (lastSelected.type === 'action') {
+                                                        setProfilePin(profileIndex, pin, {
+                                                                action: lastSelected.value,
+                                                                customButtonMask: 0,
+                                                                customDpadMask: 0,
+                                                        });
+                                                } else {
+                                                        setProfilePin(
+                                                                profileIndex,
+                                                                pin,
+                                                                selected.reduce(
+                                                                        (masks, option) => ({
+                                                                                ...masks,
+                                                                                customButtonMask:
+                                                                                        option.type === 'customButtonMask'
+                                                                                                ? masks.customButtonMask ^ option.customButtonMask
+                                                                                                : masks.customButtonMask,
+                                                                                customDpadMask:
+                                                                                        option.type === 'customDpadMask'
+                                                                                                ? masks.customDpadMask ^ option.customDpadMask
+                                                                                                : masks.customDpadMask,
+                                                                        }),
+                                                                        {
+                                                                                action: BUTTON_ACTIONS.CUSTOM_BUTTON_COMBO,
+                                                                                customButtonMask: 0,
+                                                                                customDpadMask: 0,
+                                                                        },
+                                                                ),
+                                                        );
+                                                }
+                                        } else {
+                                                setProfilePin(profileIndex, pin, {
+                                                        action: selected[0].value,
+                                                        customButtonMask: 0,
+                                                        customDpadMask: 0,
+                                                });
+                                        }
+                                } else {
+                                        setProfilePin(profileIndex, pin, {
+                                                action: selected.value,
+                                                customButtonMask: 0,
+                                                customDpadMask: 0,
+                                        });
+                                }
 			},
 		[],
 	);
