@@ -76,6 +76,7 @@ void Gamepad::setup()
 	mapDigitalDown  = new GamepadButtonMapping(GAMEPAD_MASK_DOWN);
 	mapDigitalLeft  = new GamepadButtonMapping(GAMEPAD_MASK_LEFT);
 	mapDigitalRight = new GamepadButtonMapping(GAMEPAD_MASK_RIGHT);
+	mapAntiDown     = new GamepadButtonMapping(GAMEPAD_MASK_DOWN);
 	mapAnalogLSXNeg = new GamepadButtonMapping(ANALOG_DIRECTION_LS_X_NEG);
 	mapAnalogLSXPos = new GamepadButtonMapping(ANALOG_DIRECTION_LS_X_POS);
 	mapAnalogLSYNeg = new GamepadButtonMapping(ANALOG_DIRECTION_LS_Y_NEG);
@@ -172,6 +173,7 @@ void Gamepad::setup()
 			case GpioAction::DIGITAL_DIRECTION_DOWN:	mapDigitalDown->pinMask |= 1 << pin; break;
 			case GpioAction::DIGITAL_DIRECTION_LEFT:	mapDigitalLeft->pinMask |= 1 << pin; break;
 			case GpioAction::DIGITAL_DIRECTION_RIGHT:	mapDigitalRight->pinMask |= 1 << pin; break;
+			case GpioAction::BUTTON_PRESS_ANTI_DOWN:	mapAntiDown->pinMask |= 1 << pin; break;
 			case GpioAction::ANALOG_DIRECTION_LS_X_NEG:	mapAnalogLSXNeg->pinMask |= 1 << pin; break;
 			case GpioAction::ANALOG_DIRECTION_LS_X_POS:	mapAnalogLSXPos->pinMask |= 1 << pin; break;
 			case GpioAction::ANALOG_DIRECTION_LS_Y_NEG:	mapAnalogLSYNeg->pinMask |= 1 << pin; break;
@@ -249,6 +251,7 @@ void Gamepad::reinit()
 	delete mapDigitalDown;
 	delete mapDigitalLeft;
 	delete mapDigitalRight;
+	delete mapAntiDown;
 	delete mapAnalogLSXNeg;
 	delete mapAnalogLSXPos;
 	delete mapAnalogLSYNeg;
@@ -344,6 +347,10 @@ void Gamepad::read()
 
 	state.aux = 0
 		| (values & mapButtonFn->pinMask)   ? mapButtonFn->buttonMask : 0;
+
+	if (values & mapAntiDown->pinMask) {
+		values &= ~mapDpadDown->pinMask;
+	}
 
 	state.dpad = 0
 		| ((values & mapDpadUp->pinMask)       ? mapDpadUp->buttonMask              : 0)
