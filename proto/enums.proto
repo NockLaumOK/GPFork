@@ -359,6 +359,7 @@ enum GpioAction
     MODE_WHEEL_PEDAL_CLUTCH      = 130;
 
     BUTTON_PRESS_XOR             = 131;
+    BUTTON_PRESS_ANTI_DOWN       = 132;
 }
 
 enum GpioDirection

@@ -61,6 +61,7 @@ export default {
 	'DIGITAL_DIRECTION_DOWN': 'Digital/D-Pad Down',
 	'DIGITAL_DIRECTION_LEFT': 'Digital/D-Pad Left',
 	'DIGITAL_DIRECTION_RIGHT': 'Digital/D-Pad Right',
+	'BUTTON_PRESS_ANTI_DOWN': 'Anti-Down',
 	'ANALOG_DIRECTION_LS_X_NEG': 'Left Analog Stick X-',
 	'ANALOG_DIRECTION_LS_X_POS': 'Left Analog Stick X+',
 	'ANALOG_DIRECTION_LS_Y_NEG': 'Left Analog Stick Y-',

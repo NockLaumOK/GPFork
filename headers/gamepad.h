@@ -180,6 +180,7 @@ public:
 	GamepadButtonMapping *mapDigitalDown;
 	GamepadButtonMapping *mapDigitalLeft;
 	GamepadButtonMapping *mapDigitalRight;
+	GamepadButtonMapping *mapAntiDown;
 	GamepadButtonMapping *mapAnalogLSXNeg;
 	GamepadButtonMapping *mapAnalogLSXPos;
 	GamepadButtonMapping *mapAnalogLSYNeg;
